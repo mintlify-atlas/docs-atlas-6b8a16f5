@@ -33,15 +33,15 @@ This guide gets you from zero to a running Carnero.Dev development environment. 
   </Step>
 
   <Step title="Configure environment variables">
-    Create a `.env` file at the project root and populate it with your Supabase and Resend credentials. The application will not connect to the database or send emails without these values.
+    Create a `.env` file at the project root and populate it with your Supabase and Resend credentials. `RESEND_API_KEY` is read directly from the environment at runtime; `SUPABASE_URL` and `SUPABASE_ANON_KEY` are currently hardcoded in `src/lib/supabase.ts` and should be replaced with env var references before deploying to production.
 
-    ```bash .env
+    ```bash
     SUPABASE_URL=your_supabase_project_url
     SUPABASE_ANON_KEY=your_supabase_anon_key
     RESEND_API_KEY=your_resend_api_key
     ```
 
-    See the [Environment Setup](/dev/environment-setup) guide for step-by-step instructions on finding each value.
+    See the [Environment Setup](/dev/environment-setup) guide for step-by-step instructions on finding each value and wiring up the Supabase client.
   </Step>
 
   <Step title="Start the development server">

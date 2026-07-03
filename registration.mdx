@@ -1,5 +1,5 @@
 ---
-title: "Register Your Team for Carnero.Dev Hackathon"
+title: "Carnero.Dev Hackathon: Full Team Registration Guide"
 sidebarTitle: "Registration"
 description: "How to register your team for Carnero.Dev. Fill out the form on the event site with team name, representative details, and member count (1-4)."
 ---
@@ -58,10 +58,10 @@ The following fields are submitted as a JSON payload to the `/api/register` endp
   **Example:** `rep@roque.tecnm.mx`
 </ParamField>
 
-<ParamField body="membersCount" type="number" required>
-  Total number of team members, including the representative/leader. Must be an integer between **1** and **4** (inclusive). Values outside this range are rejected by the server.
+<ParamField body="membersCount" type="string" required>
+  Total number of team members, including the representative/leader. Submitted as a string from the radio button selection. Must resolve to an integer between **1** and **4** (inclusive). Values outside this range are rejected by the server.
 
-  **Allowed values:** `1`, `2`, `3`, `4`
+  **Allowed values:** `"1"`, `"2"`, `"3"`, `"4"`
 </ParamField>
 
 ## What Happens After Registration
@@ -74,7 +74,7 @@ Once your form is submitted successfully, the API performs two actions:
 Closer to the event date (Friday, October 16), you will receive a follow-up email with detailed schedule information, venue access instructions, technical requirements, and any last-minute announcements.
 
 <Note>
-  **Solo registration is fully allowed.** You do not need to form a team before registering — `membersCount: 1` is a valid option. During the first networking hour on Friday morning, a team-matching dynamic will be held so that solo participants can find partners and build complete teams before hacking begins.
+  **Solo registration is fully allowed.** You do not need to form a team before registering — a `membersCount` of `"1"` is a valid option and is supported by both the form and the server-side validation.
 </Note>
 
 <Warning>

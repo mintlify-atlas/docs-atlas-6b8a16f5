@@ -1,5 +1,5 @@
 ---
-title: "POST /api/register — Team Registration Endpoint"
+title: "POST /api/register: Astro Team Registration Endpoint"
 sidebarTitle: "Registration API"
 description: "POST /api/register accepts team registration data, validates inputs server-side, stores the record in Supabase, and triggers a Resend confirmation email."
 ---
@@ -77,7 +77,10 @@ A `200` is returned only after both the Supabase insert and the Resend dispatch 
 - `repEmail` does not satisfy the server-side regex `/^[^\s@]+@[^\s@]+\.[^\s@]+$/`.
 - `membersCount` parses to `NaN`, or falls outside the range `1–4`.
 
-**500 Internal Server Error** — Returned when the Supabase `insert` call resolves with a non-null `dbError`. The body contains the Supabase error message wrapped in the `[ERROR_DE_SISTEMA]:` prefix.
+**500 Internal Server Error** — Two distinct paths produce a `500`:
+
+- **Database failure** — The Supabase `insert` call resolves with a non-null `dbError`. The body contains the prefix `[ERROR_DE_SISTEMA]: No se pudo guardar la información en base de datos:` followed by the Supabase error message.
+- **Unexpected runtime exception** — An unhandled exception propagates to the outer `catch` block. The body uses the prefix `[ERROR_INTERNO_DEL_SERVIDOR]:` followed by the thrown error message (or `'Error inesperado.'` if no message is available).
 
 Example error response body (applies to both `400` and `500` codes):
 

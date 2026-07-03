@@ -4,13 +4,13 @@ sidebarTitle: "Deployment"
 description: "Build and deploy the Carnero.Dev Node.js standalone server to any cloud provider — includes production build steps and server startup instructions."
 ---
 
-Carnero.Dev is configured for server-side rendering using the `@astrojs/node` adapter in `standalone` mode. The production build generates a self-contained Node.js server in `/dist` that can be deployed to any platform that runs Node.js. Unlike a static export, the SSR server processes every request at runtime, enabling dynamic registration handling, Supabase queries, and Resend email dispatch on each incoming request.
+Carnero.Dev is configured for server-side rendering using the `@astrojs/node` adapter in `standalone` mode. The production build generates a self-contained Node.js server in `dist/` that can be deployed to any platform that runs Node.js. Unlike a static export, the SSR server processes every request at runtime, enabling dynamic registration handling, Supabase queries, and Resend email dispatch on each incoming request.
 
 ## Production Build
 
 <Steps>
   <Step title="Set environment variables">
-    Ensure `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `RESEND_API_KEY` are available in your deployment environment before building. While Astro reads these at request time rather than build time, having them in place from the start avoids silent failures on first deploy. See the [Environment Variables](/dev/environment-variables) reference for details on each variable.
+    Ensure `RESEND_API_KEY` is available in your deployment environment before starting the server. `SUPABASE_URL` and `SUPABASE_ANON_KEY` are currently hardcoded in `src/lib/supabase.ts`, so no env vars are required for Supabase connectivity in the default configuration — but you should replace those hardcoded values with environment variables before going to production. See the [Environment Variables](/dev/environment-variables) reference for details.
   </Step>
 
   <Step title="Build the project">
@@ -20,7 +20,7 @@ Carnero.Dev is configured for server-side rendering using the `@astrojs/node` ad
     npm run build
     ```
 
-    This executes `astro build` and outputs a complete server bundle to `/dist`. The bundle includes the Node.js entry point at `dist/server/entry.mjs`, all compiled Astro pages and API routes, and all static assets under `dist/client/`.
+    This executes `astro build` and outputs a complete server bundle to `dist/`. The bundle includes the Node.js entry point at `dist/server/entry.mjs`, all compiled Astro pages and API routes, and all static assets under `dist/client/`.
   </Step>
 
   <Step title="Start the production server">
@@ -46,25 +46,25 @@ The standalone bundle runs on any platform that can execute a Node.js process. T
 
 <CardGroup cols={2}>
   <Card title="Railway" icon="train">
-    Set `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `RESEND_API_KEY` in the Railway dashboard under **Variables**. Connect your GitHub repository and Railway will auto-detect the Node.js project. Set the start command to `node dist/server/entry.mjs` and the build command to `npm run build` in the service settings.
+    Set `RESEND_API_KEY` in the Railway dashboard under **Variables**. Connect your GitHub repository and Railway will auto-detect the Node.js project. Set the start command to `node dist/server/entry.mjs` and the build command to `npm run build` in the service settings. If you have migrated `src/lib/supabase.ts` to read from env vars, add `SUPABASE_URL` and `SUPABASE_ANON_KEY` here as well.
   </Card>
 
   <Card title="Render" icon="cloud">
-    Create a **Web Service** and point it to your repository. Set the **Build Command** to `npm run build` and the **Start Command** to `node dist/server/entry.mjs`. Add `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `RESEND_API_KEY` as environment variables in the Render dashboard under **Environment**.
+    Create a **Web Service** and point it to your repository. Set the **Build Command** to `npm run build` and the **Start Command** to `node dist/server/entry.mjs`. Add `RESEND_API_KEY` as an environment variable in the Render dashboard under **Environment**. Add `SUPABASE_URL` and `SUPABASE_ANON_KEY` if you have updated `src/lib/supabase.ts` to read them from the environment.
   </Card>
 
   <Card title="Fly.io" icon="plane">
-    Use `fly launch` with Node.js auto-detection, or provide a `Dockerfile` that runs `npm run build` and then `node dist/server/entry.mjs`. Inject secrets at deploy time with `fly secrets set SUPABASE_URL=... SUPABASE_ANON_KEY=... RESEND_API_KEY=...` — Fly exposes these as standard environment variables at runtime.
+    Use `fly launch` with Node.js auto-detection, or provide a `Dockerfile` that runs `npm run build` and then `node dist/server/entry.mjs`. Inject secrets at deploy time with `fly secrets set RESEND_API_KEY=...` — Fly exposes these as standard environment variables at runtime. Add Supabase secrets if you have moved the credentials out of the hardcoded `src/lib/supabase.ts`.
   </Card>
 
   <Card title="VPS / Self-hosted" icon="server">
-    Run `npm run build` locally or in CI, then copy the `/dist` directory to the target server via `rsync` or `scp`. Start the server with `node dist/server/entry.mjs` and manage the process using **PM2** (`pm2 start dist/server/entry.mjs`) or a **systemd** service unit to ensure automatic restarts on failure or reboot.
+    Run `npm run build` locally or in CI, then copy the `dist/` directory to the target server via `rsync` or `scp`. Start the server with `node dist/server/entry.mjs` and manage the process using **PM2** (`pm2 start dist/server/entry.mjs`) or a **systemd** service unit to ensure automatic restarts on failure or reboot.
   </Card>
 </CardGroup>
 
 ## Environment Variables at Runtime
 
-All three environment variables must be available in the **runtime environment**, not just at build time. Because Carnero.Dev uses SSR (`output: 'server'` in `astro.config.mjs`), Astro reads `process.env` and `import.meta.env` on every incoming request — they are never baked into the static bundle.
+Environment variables must be available in the **runtime environment**, not just at build time. Because Carnero.Dev uses SSR (`output: 'server'` in `astro.config.mjs`), Astro reads `process.env` and `import.meta.env` on every incoming request — they are never baked into the static bundle.
 
 The registration API route resolves the Resend key from both sources to handle every Node.js runtime context:
 
@@ -72,10 +72,14 @@ The registration API route resolves the Resend key from both sources to handle e
 const resendApiKey = import.meta.env.RESEND_API_KEY || process.env.RESEND_API_KEY;
 ```
 
-If either `SUPABASE_URL` or `SUPABASE_ANON_KEY` is absent at request time, the Supabase client will throw a runtime error and `/api/register` will respond with HTTP 500. If `RESEND_API_KEY` is missing, the registration is still saved to the database but email delivery is skipped and `{ email_sent: false }` is returned. See [Behavior When Missing](/dev/environment-variables#behavior-when-missing) for the full breakdown.
+<Warning>
+  `src/lib/supabase.ts` currently hardcodes the Supabase URL and anon key directly in the source file. This means `SUPABASE_URL` and `SUPABASE_ANON_KEY` environment variables have no effect unless you update `supabase.ts` to read from `process.env`. See [Environment Variables](/dev/environment-variables) for the recommended change.
+</Warning>
+
+If `RESEND_API_KEY` is missing or still set to the placeholder value, the registration is still saved to the database but email delivery is skipped and `{ email_sent: false }` is returned in the response. See [Behavior When Missing](/dev/environment-variables#behavior-when-missing) for the full breakdown.
 
 <Tip>
-  Run `npm run preview` to test the production build locally before deploying. It starts the exact same Node.js standalone server (`dist/server/entry.mjs`) that will run in production, giving you a faithful environment to verify that all environment variables are wired up correctly and that the registration flow works end-to-end.
+  Run `npm run preview` to test the production build locally before deploying. It starts the same Node.js standalone server that will run in production, giving you a faithful environment to verify that all environment variables are wired up correctly and that the registration flow works end-to-end.
 </Tip>
 
 ## Health Check

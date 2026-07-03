@@ -1,14 +1,14 @@
 ---
 title: "Carnero.Dev Project Structure and File Organization"
 sidebarTitle: "Project Structure"
-description: "Overview of the Carnero.Dev source directory layout: pages, components, layouts, lib, styles, and public assets."
+description: "A complete map of the Carnero.Dev source tree: pages, components, layouts, lib, styles, and public assets — everything you need to navigate the codebase."
 ---
 
 Carnero.Dev follows Astro's standard directory conventions with clear separation between UI components, page routes, backend logic, and static assets. Understanding the layout makes it straightforward to locate any feature — from the hero countdown timer to the server-side registration API.
 
 ## Directory Tree
 
-```
+```text
 /
 ├── public/              # Static assets and public files
 │   ├── favicon.ico
@@ -31,6 +31,7 @@ Carnero.Dev follows Astro's standard directory conventions with clear separation
 │   │   ├── Navbar.astro        # Fixed blur navigation bar
 │   │   ├── Footer.astro        # Site footer
 │   │   ├── RegisterModal.astro # Registration modal with form
+│   │   ├── LoadingScreen.astro # Full-screen loading overlay shown on initial page load
 │   │   ├── Logo.astro          # SVG logo component
 │   │   └── RamLogo.astro       # Ram mascot SVG
 │   ├── layouts/
@@ -53,7 +54,7 @@ Carnero.Dev follows Astro's standard directory conventions with clear separation
 
 <CardGroup cols={2}>
   <Card title="src/components" icon="puzzle-piece">
-    All UI is broken into focused Astro components. The homepage (`index.astro`) imports and assembles them in sequence, from `<Hero />` at the top through `<Footer />` at the bottom. Each component is self-contained with its own markup and scoped styles.
+    All UI is broken into focused Astro components. The homepage (`index.astro`) imports and assembles them in sequence, from `<Hero />` at the top through `<Footer />` at the bottom. `LoadingScreen.astro` renders a full-screen overlay on initial page load. Each component is self-contained with its own markup and scoped styles.
   </Card>
   <Card title="src/pages" icon="file">
     Contains the two public routes (`/` and `/bases`) plus the `/api/register` server endpoint. Astro's file-based routing maps every `.astro` and `.ts` file in this directory directly to a URL path.

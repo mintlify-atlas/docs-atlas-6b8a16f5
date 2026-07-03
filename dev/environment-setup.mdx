@@ -1,23 +1,27 @@
 ---
 title: "Environment Variables for Carnero.Dev Platform"
 sidebarTitle: "Environment Setup"
-description: "Configure the three required environment variables for Carnero.Dev: Supabase project URL, anon key, and Resend API key for email delivery."
+description: "Configure the three environment variables for Carnero.Dev: Supabase project URL, anon key, and Resend API key for transactional email delivery."
 ---
 
-Carnero.Dev requires three environment variables to connect to Supabase (database) and Resend (email). Without them the registration API will fail gracefully — Supabase errors block registration storage, and a missing Resend key skips email dispatch with a console warning.
+Carnero.Dev relies on three environment variables to connect to Supabase (database) and Resend (email). Without them the registration API will fail gracefully — Supabase errors block registration storage, and a missing Resend key skips email dispatch with a console warning.
+
+<Warning>
+  **Important — current source state:** `src/lib/supabase.ts` currently has the Supabase URL and anon key **hardcoded** directly in the file. The `SUPABASE_URL` and `SUPABASE_ANON_KEY` environment variables described below are not yet wired up in that file. Before deploying to production you should replace the hardcoded values in `src/lib/supabase.ts` with `import.meta.env.SUPABASE_URL` and `import.meta.env.SUPABASE_ANON_KEY` respectively. `RESEND_API_KEY` is already read from the environment in `src/pages/api/register.ts`.
+</Warning>
 
 ## Required Variables
 
 <ParamField body="SUPABASE_URL" type="string" required>
-  Your Supabase project URL, e.g. `https://xxxx.supabase.co`. Found in your Supabase dashboard under **Project Settings > API**. This value is used by the Supabase client in `src/lib/supabase.ts` to locate your project's REST and realtime endpoints.
+  Your Supabase project URL, e.g. `https://xxxx.supabase.co`. Found in your Supabase dashboard under **Project Settings > API**. Once you replace the hardcoded value in `src/lib/supabase.ts`, this env var will be used to locate your project's REST and realtime endpoints.
 </ParamField>
 
 <ParamField body="SUPABASE_ANON_KEY" type="string" required>
-  Your Supabase anonymous (publishable) key. Used by the client-side Supabase client in `src/lib/supabase.ts` to authenticate requests against your project's Row Level Security policies. This key is safe to expose in a browser context — it carries no elevated privileges.
+  Your Supabase anonymous (publishable) key. Once you replace the hardcoded value in `src/lib/supabase.ts`, this env var will authenticate requests against your project's Row Level Security policies. This key is safe to expose in a browser context — it carries no elevated privileges.
 </ParamField>
 
 <ParamField body="RESEND_API_KEY" type="string" required>
-  Your Resend API key for sending transactional confirmation emails from `registro@carnero-dev.tech`. Generated under **API Keys** in your Resend dashboard. If this value is missing or a placeholder, the server logs a warning and skips email dispatch — the registration record is still persisted to Supabase.
+  Your Resend API key for sending transactional confirmation emails from `registro@carnero-dev.tech`. Read at runtime in `src/pages/api/register.ts` via `import.meta.env.RESEND_API_KEY || process.env.RESEND_API_KEY`. If this value is missing or still holds the placeholder sentinel `re_your_resend_api_key_placeholder`, the server logs a warning and skips email dispatch — the registration record is still persisted to Supabase.
 </ParamField>
 
 ## Setting Up Supabase
@@ -28,7 +32,7 @@ Carnero.Dev requires three environment variables to connect to Supabase (databas
   </Step>
 
   <Step title="Copy your Project URL and anon key">
-    Once the project is provisioned, navigate to **Project Settings > API** in the left sidebar. Copy the **Project URL** and the **anon public** key — you will paste both into your `.env` file.
+    Once the project is provisioned, navigate to **Project Settings > API** in the left sidebar. Copy the **Project URL** and the **anon public** key — you will paste both into your `.env` file and into `src/lib/supabase.ts` until env var wiring is in place.
   </Step>
 
   <Step title="Create the registrations table">
@@ -51,7 +55,7 @@ Carnero.Dev requires three environment variables to connect to Supabase (databas
   <Step title="Add credentials to your .env file">
     Paste the values you copied into the `.env` file at the project root.
 
-    ```bash .env
+    ```bash
     SUPABASE_URL=https://your-project-ref.supabase.co
     SUPABASE_ANON_KEY=your_anon_key_here
     ```
@@ -76,20 +80,20 @@ Carnero.Dev requires three environment variables to connect to Supabase (databas
   <Step title="Add the key to your .env file">
     Paste the API key into your `.env` file at the project root.
 
-    ```bash .env
-    RESEND_API_KEY=re_your_resend_api_key
+    ```bash
+    RESEND_API_KEY=re_your_actual_api_key
     ```
   </Step>
 </Steps>
 
 ## Local .env File
 
-The complete `.env` template with all three required variables:
+The complete `.env` template with all three variables:
 
-```bash .env
+```bash
 SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_ANON_KEY=your_anon_key_here
-RESEND_API_KEY=re_your_resend_api_key
+RESEND_API_KEY=re_your_actual_api_key
 ```
 
 <Warning>
@@ -98,4 +102,4 @@ RESEND_API_KEY=re_your_resend_api_key
 
 ## Graceful Degradation
 
-If `RESEND_API_KEY` is missing from the environment or still holds the placeholder value, the registration API endpoint detects this at runtime and logs a warning to the server console instead of attempting an email dispatch. The registration record is still written to Supabase normally, so no participant data is lost. This behaviour makes it safe to test the full registration flow locally without a valid Resend key — simply watch the server logs to confirm the warning path is being hit.
+If `RESEND_API_KEY` is missing from the environment or still holds the placeholder sentinel value `re_your_resend_api_key_placeholder`, the registration API endpoint in `src/pages/api/register.ts` detects this at runtime and logs a warning to the server console instead of attempting an email dispatch. The registration record is still written to Supabase normally, so no participant data is lost. This behaviour makes it safe to test the full registration flow locally without a valid Resend key — simply watch the server logs to confirm the warning path is being hit.

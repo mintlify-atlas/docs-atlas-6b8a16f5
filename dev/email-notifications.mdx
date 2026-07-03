@@ -1,5 +1,5 @@
 ---
-title: "Email Notifications with Resend in Carnero.Dev"
+title: "Email Notifications: Resend Confirmation for Teams"
 sidebarTitle: "Email"
 description: "Carnero.Dev uses Resend to send HTML confirmation emails to team representatives after successful registration, with a plain-text fallback."
 ---
@@ -55,13 +55,13 @@ The HTML template is a table-based layout optimized for Gmail, Outlook, Yahoo Ma
 A `text` field is always included alongside `html` to improve deliverability and pass spam filters that penalize HTML-only messages. The plain text template mirrors the essential data from the HTML version:
 
 ```
-Hola {repName},
+Hola ${repName},
 
 Tu registro para Carnero.Dev fue confirmado exitosamente.
 
-Equipo: {teamName}
-Representante: {repName}
-Integrantes: {membersCount}
+Equipo: ${teamName}
+Representante: ${repName}
+Integrantes: ${membersCount}
 
 Nos vemos en el hackathon.
 Build The Future.

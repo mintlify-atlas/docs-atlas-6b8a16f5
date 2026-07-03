@@ -4,28 +4,56 @@ sidebarTitle: "Environment Variables"
 description: "Complete reference for all environment variables used by Carnero.Dev: Supabase connection, Resend API key, and their behavior when missing."
 ---
 
-Carnero.Dev reads three environment variables at runtime to connect to Supabase and Resend. All three are required for full functionality; missing values degrade gracefully with warnings logged to the server console. Because the application uses Astro SSR (`output: 'server'`), these variables are resolved on each incoming request via `import.meta.env` and `process.env` — they must be present in the runtime process, not just during the build step.
+Carnero.Dev uses three environment variables to connect to Supabase and Resend. `RESEND_API_KEY` is read at runtime on every request; `SUPABASE_URL` and `SUPABASE_ANON_KEY` are referenced in `src/lib/supabase.ts`, which currently hardcodes those values directly in source — see the note in each field below. Missing values degrade gracefully with warnings logged to the server console. Because the application uses Astro SSR (`output: 'server'`), runtime variables are resolved via `import.meta.env` and `process.env` — they must be present in the runtime process, not just during the build step.
 
 ## Variable Reference
 
 <ParamField path="SUPABASE_URL" type="string" required>
-  The full URL of your Supabase project, e.g. `https://xxxx.supabase.co`. Used in `src/lib/supabase.ts` to initialize the Supabase client via `createClient(supabaseUrl, supabaseKey)`. You can find this value in your Supabase project dashboard under **Project Settings → API → Project URL**.
+  The full URL of your Supabase project, e.g. `https://xxxx.supabase.co`. This value is passed to `createClient(supabaseUrl, supabaseKey)` in `src/lib/supabase.ts`.
+
+  **Important:** the current source hardcodes this value directly in `src/lib/supabase.ts` rather than reading it from an environment variable. To use this env var, update `supabase.ts` to read `process.env.SUPABASE_URL` instead. You can find the URL in your Supabase project dashboard under **Project Settings → API → Project URL**.
 </ParamField>
 
 <ParamField path="SUPABASE_ANON_KEY" type="string" required>
-  The anonymous (publishable) key for your Supabase project. This key is safe to expose in a browser context — it is the `sb_publishable_` prefixed key found in your Supabase project dashboard under **Project Settings → API → Project API Keys**. It is passed as the second argument to `createClient` in `src/lib/supabase.ts` and enforces Row Level Security policies defined on your database tables.
+  The anonymous (publishable) key for your Supabase project. It is passed as the second argument to `createClient` in `src/lib/supabase.ts` and enforces Row Level Security policies defined on your database tables.
+
+  **Important:** the current source hardcodes this value directly in `src/lib/supabase.ts` rather than reading it from an environment variable. To use this env var, update `supabase.ts` to read `process.env.SUPABASE_ANON_KEY` instead. Find the key in your Supabase project dashboard under **Project Settings → API → Project API Keys**.
 </ParamField>
 
 <ParamField path="RESEND_API_KEY" type="string" required>
   Your Resend API key, prefixed `re_`. Used to authenticate the `resend.emails.send()` call in `src/pages/api/register.ts`. If this variable is missing entirely or retains the placeholder value `re_your_resend_api_key_placeholder`, email sending is skipped and a `[RESEND_WARNING]` is logged to the server console. The team registration record is still written to Supabase. Obtain your key from the [Resend dashboard](https://resend.com/api-keys).
 </ParamField>
 
+## Migrating Supabase to Environment Variables
+
+The current `src/lib/supabase.ts` hardcodes the Supabase credentials:
+
+```typescript
+const supabaseUrl = 'https://sdobjolxazkvbsakzwcl.supabase.co'
+const supabaseKey = 'sb_publishable_O51sgtbrGi48EakI2_z-5w_3QI7bef8'
+
+export const supabase = createClient(supabaseUrl, supabaseKey)
+```
+
+To move those credentials to environment variables, replace the hardcoded values with `process.env` lookups:
+
+```typescript
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.SUPABASE_URL!
+const supabaseKey = process.env.SUPABASE_ANON_KEY!
+
+export const supabase = createClient(supabaseUrl, supabaseKey)
+```
+
+After making this change, set `SUPABASE_URL` and `SUPABASE_ANON_KEY` in your deployment environment and they will be picked up at server startup.
+
 ## .env File Template
 
-Create a `.env` file in the project root with the following structure before running `npm run dev` or `npm run build`:
+Create a `.env` file in the project root with the following structure before running `npm run dev` or `npm run build`. The Supabase entries only take effect after updating `src/lib/supabase.ts` as described above.
 
-```bash .env
-# Supabase connection
+```bash
+# Supabase connection (requires supabase.ts update to read from process.env)
 SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_ANON_KEY=sb_publishable_your_anon_key_here
 
@@ -37,15 +65,15 @@ RESEND_API_KEY=re_your_resend_api_key_here
 
 | Variable | File | Purpose |
 |---|---|---|
-| `SUPABASE_URL` | `src/lib/supabase.ts` | Supabase client init URL |
-| `SUPABASE_ANON_KEY` | `src/lib/supabase.ts` | Supabase auth key |
+| `SUPABASE_URL` | `src/lib/supabase.ts` | Supabase client init URL (currently hardcoded) |
+| `SUPABASE_ANON_KEY` | `src/lib/supabase.ts` | Supabase auth key (currently hardcoded) |
 | `RESEND_API_KEY` | `src/pages/api/register.ts` | Email dispatch authentication |
 
 ## Behavior When Missing
 
 Understanding the failure modes for each variable helps you diagnose issues in production without guesswork.
 
-**`SUPABASE_URL` or `SUPABASE_ANON_KEY` missing:** The Supabase client initializes with `undefined` values. The application will start without errors, but the first database operation — the `.insert()` call inside `POST /api/register` — will throw a runtime error. This results in a `500` response with the body `{ "error": "[ERROR_DE_SISTEMA]: No se pudo guardar la información en base de datos: ..." }` and a `[SUPABASE_DB_INSERT_ERROR]` entry in the server console.
+**`SUPABASE_URL` or `SUPABASE_ANON_KEY` missing:** Because the current source hardcodes these values, removing them from the environment has no effect on Supabase connectivity. If you have migrated `supabase.ts` to read from `process.env` and the variables are absent, the Supabase client initializes with `undefined` values. The application starts without errors, but the first database operation — the `.insert()` call inside `POST /api/register` — throws a runtime error, resulting in a `500` response with `{ "error": "[ERROR_DE_SISTEMA]: No se pudo guardar la información en base de datos: ..." }` and a `[SUPABASE_DB_INSERT_ERROR]` entry in the server console.
 
 **`RESEND_API_KEY` missing:** The registration API detects the absent or placeholder key before instantiating the Resend client:
 
@@ -85,4 +113,4 @@ The registration API route reads the Resend key from both to handle every possib
 const resendApiKey = import.meta.env.RESEND_API_KEY || process.env.RESEND_API_KEY;
 ```
 
-The Supabase client in `src/lib/supabase.ts` reads the variables at module initialization time, so they must be present when the server process starts — not just when the first request arrives. If you update these values in your deployment environment, a full server restart is required for the new values to take effect.
+If you update `src/lib/supabase.ts` to read Supabase credentials from `process.env`, those values are resolved at module initialization time when the server process starts. A full server restart is required for updated environment variable values to take effect.
