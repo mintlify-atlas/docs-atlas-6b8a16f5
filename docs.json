@@ -1,72 +1,100 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mintlify Starter Kit",
+  "name": "Carnero Dev",
+  "theme": "willow",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#d93783",
+    "light": "#df8cb9",
+    "dark": "#df8cb9"
   },
-  "favicon": "/favicon.svg",
-  "navigation": {
-    "pages": [
-      {
-        "group": "Getting Started",
-        "pages": [
-          "index",
-          "quickstart"
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
+  "favicon": "https://media.brand.dev/299af0d8-22f0-4493-9b56-5202b943a57e.jpg",
   "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "light": "https://media.brand.dev/1fbda9bf-a21f-434a-8500-ce9ec08767a9.svg",
+    "dark": "https://media.brand.dev/1fbda9bf-a21f-434a-8500-ce9ec08767a9.svg"
   },
   "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
     "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.mintlify.com"
+      "type": "github",
+      "href": "https://github.com/moradoadrian/carneroDev"
     }
-  },
-  "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
-    ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "github": "https://github.com/moradoadrian/carneroDev"
     }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Event Guide",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "introduction",
+              "about-the-event",
+              "competition-tracks"
+            ]
+          },
+          {
+            "group": "Participation",
+            "pages": [
+              "registration",
+              "rules-and-eligibility",
+              "evaluation-criteria"
+            ]
+          },
+          {
+            "group": "Schedule & Prizes",
+            "pages": [
+              "timeline",
+              "prizes-and-recognition",
+              "speakers-and-judges"
+            ]
+          },
+          {
+            "group": "FAQ",
+            "pages": [
+              "faq"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Developer Docs",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "dev/quickstart",
+              "dev/environment-setup"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "dev/project-structure",
+              "dev/tech-stack",
+              "dev/animations"
+            ]
+          },
+          {
+            "group": "Backend & Integrations",
+            "pages": [
+              "dev/supabase-integration",
+              "dev/registration-api",
+              "dev/email-notifications"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "dev/deployment",
+              "dev/environment-variables"
+            ]
+          }
+        ]
+      }
+    ]
   }
 }

@@ -1,0 +1,115 @@
+---
+title: "POST /api/register — Team Registration Endpoint"
+sidebarTitle: "Registration API"
+description: "POST /api/register accepts team registration data, validates inputs server-side, stores the record in Supabase, and triggers a Resend confirmation email."
+---
+
+The registration API at `POST /api/register` is an Astro server-side route that handles the full registration pipeline: input validation, Supabase database insertion, and confirmation email dispatch via Resend. Because `prerender` is set to `false`, the file is never statically generated — every request is executed dynamically on the server, giving the handler access to runtime environment variables and live database connections.
+
+## Endpoint Overview
+
+| Property | Value |
+|---|---|
+| **Method** | `POST` |
+| **Path** | `/api/register` |
+| **Content-Type** | `application/json` |
+| **Auth** | None (public endpoint) |
+| **prerender** | `false` (server-rendered, not statically generated) |
+
+## Request Body
+
+All four fields are required. The server will return `400 Bad Request` if any field is missing, if the email does not match the validation regex, or if `membersCount` falls outside the accepted range.
+
+<ParamField body="teamName" type="string" required>
+  Team name. Minimum 1 character. Stored in the `team_name` column of the `registrations` table.
+</ParamField>
+
+<ParamField body="repName" type="string" required>
+  Full name of the team representative. Stored in the `representative_name` column.
+</ParamField>
+
+<ParamField body="repEmail" type="string" required>
+  Valid email address for the representative. Must match `/^[^\s@]+@[^\s@]+\.[^\s@]+$/`. Used as the delivery address for the Resend confirmation email.
+</ParamField>
+
+<ParamField body="membersCount" type="string" required>
+  Team size submitted as a string — `'1'`, `'2'`, `'3'`, or `'4'`. The server parses this to an integer with `parseInt(membersCount, 10)` before inserting into the database.
+</ParamField>
+
+## Example Request
+
+```bash
+curl -X POST https://carnero-dev.tech/api/register \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "teamName": "RoqueHackers",
+    "repName": "Ana García",
+    "repEmail": "ana@roque.tecnm.mx",
+    "membersCount": "3"
+  }'
+```
+
+## Success Response (200)
+
+A `200` is returned only after both the Supabase insert and the Resend dispatch have been attempted. Note that `email_sent` may be `false` even on a `200` — this indicates the registration was saved but the confirmation email encountered an error.
+
+<ResponseField name="success" type="boolean">
+  Always `true` on a successful `200` response.
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Human-readable confirmation string. Value: `"¡Registro exitoso!"`
+</ResponseField>
+
+<ResponseField name="email_sent" type="boolean">
+  `true` if the Resend API accepted the email without error. `false` if the API key was missing, the key matched the placeholder value, or Resend returned an error.
+</ResponseField>
+
+<ResponseField name="email_error" type="string">
+  Error message describing why the email was not delivered. Empty string (`""`) on success.
+</ResponseField>
+
+## Error Responses
+
+**400 Bad Request** — Returned for any of the following validation failures:
+
+- One or more required fields (`teamName`, `repName`, `repEmail`, `membersCount`) are absent or empty.
+- `repEmail` does not satisfy the server-side regex `/^[^\s@]+@[^\s@]+\.[^\s@]+$/`.
+- `membersCount` parses to `NaN`, or falls outside the range `1–4`.
+
+**500 Internal Server Error** — Returned when the Supabase `insert` call resolves with a non-null `dbError`. The body contains the Supabase error message wrapped in the `[ERROR_DE_SISTEMA]:` prefix.
+
+Example error response body (applies to both `400` and `500` codes):
+
+```json
+{
+  "error": "[ERROR_DE_VALIDACION]: Faltan campos requeridos en el servidor."
+}
+```
+
+## Validation Logic
+
+The registration flow uses two independent layers of validation, ensuring that invalid data is never written to the database even if the client-side check is somehow bypassed.
+
+**Layer 1 — Client-side (`RegisterModal.astro`)**
+
+Before the `fetch` call is issued, the modal's `submit` handler checks:
+
+- All four fields are non-empty and the terms checkbox is checked.
+- `repEmail` matches the regex `/^[^\s@]+@[^\s@]+\.[^\s@]+$/`.
+
+If validation fails, the error string is written to the `#registration-error` panel and the request is never sent.
+
+**Layer 2 — Server-side (`register.ts`)**
+
+The API route re-validates all fields independently of the client:
+
+1. Presence check for `teamName`, `repName`, `repEmail`, and `membersCount` — returns `400` with `[ERROR_DE_VALIDACION]: Faltan campos requeridos en el servidor.`
+2. Email regex test — returns `400` with `[ERROR_DE_VALIDACION]: Correo electrónico no válido en el servidor.`
+3. `parseInt` range check (`1 ≤ parsedCount ≤ 4`) — returns `400` with `[ERROR_DE_VALIDACION]: Tamaño de equipo no permitido.`
+
+Only after all three server-side checks pass does the handler proceed to the Supabase insert.
+
+<Note>
+  If the `RESEND_API_KEY` environment variable is missing or still holds the placeholder value `re_your_resend_api_key_placeholder`, the server logs `[RESEND_WARNING]` and skips email dispatch entirely — the registration is still saved to Supabase. The `200` response will contain `email_sent: false` and a descriptive `email_error` message.
+</Note>

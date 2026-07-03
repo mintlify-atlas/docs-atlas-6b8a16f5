@@ -1,0 +1,88 @@
+---
+title: "Carnero.Dev Environment Variables Reference"
+sidebarTitle: "Environment Variables"
+description: "Complete reference for all environment variables used by Carnero.Dev: Supabase connection, Resend API key, and their behavior when missing."
+---
+
+Carnero.Dev reads three environment variables at runtime to connect to Supabase and Resend. All three are required for full functionality; missing values degrade gracefully with warnings logged to the server console. Because the application uses Astro SSR (`output: 'server'`), these variables are resolved on each incoming request via `import.meta.env` and `process.env` — they must be present in the runtime process, not just during the build step.
+
+## Variable Reference
+
+<ParamField path="SUPABASE_URL" type="string" required>
+  The full URL of your Supabase project, e.g. `https://xxxx.supabase.co`. Used in `src/lib/supabase.ts` to initialize the Supabase client via `createClient(supabaseUrl, supabaseKey)`. You can find this value in your Supabase project dashboard under **Project Settings → API → Project URL**.
+</ParamField>
+
+<ParamField path="SUPABASE_ANON_KEY" type="string" required>
+  The anonymous (publishable) key for your Supabase project. This key is safe to expose in a browser context — it is the `sb_publishable_` prefixed key found in your Supabase project dashboard under **Project Settings → API → Project API Keys**. It is passed as the second argument to `createClient` in `src/lib/supabase.ts` and enforces Row Level Security policies defined on your database tables.
+</ParamField>
+
+<ParamField path="RESEND_API_KEY" type="string" required>
+  Your Resend API key, prefixed `re_`. Used to authenticate the `resend.emails.send()` call in `src/pages/api/register.ts`. If this variable is missing entirely or retains the placeholder value `re_your_resend_api_key_placeholder`, email sending is skipped and a `[RESEND_WARNING]` is logged to the server console. The team registration record is still written to Supabase. Obtain your key from the [Resend dashboard](https://resend.com/api-keys).
+</ParamField>
+
+## .env File Template
+
+Create a `.env` file in the project root with the following structure before running `npm run dev` or `npm run build`:
+
+```bash .env
+# Supabase connection
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_ANON_KEY=sb_publishable_your_anon_key_here
+
+# Resend email API
+RESEND_API_KEY=re_your_resend_api_key_here
+```
+
+## Where Variables Are Used
+
+| Variable | File | Purpose |
+|---|---|---|
+| `SUPABASE_URL` | `src/lib/supabase.ts` | Supabase client init URL |
+| `SUPABASE_ANON_KEY` | `src/lib/supabase.ts` | Supabase auth key |
+| `RESEND_API_KEY` | `src/pages/api/register.ts` | Email dispatch authentication |
+
+## Behavior When Missing
+
+Understanding the failure modes for each variable helps you diagnose issues in production without guesswork.
+
+**`SUPABASE_URL` or `SUPABASE_ANON_KEY` missing:** The Supabase client initializes with `undefined` values. The application will start without errors, but the first database operation — the `.insert()` call inside `POST /api/register` — will throw a runtime error. This results in a `500` response with the body `{ "error": "[ERROR_DE_SISTEMA]: No se pudo guardar la información en base de datos: ..." }` and a `[SUPABASE_DB_INSERT_ERROR]` entry in the server console.
+
+**`RESEND_API_KEY` missing:** The registration API detects the absent or placeholder key before instantiating the Resend client:
+
+```typescript
+const resendApiKey = import.meta.env.RESEND_API_KEY || process.env.RESEND_API_KEY;
+if (!resendApiKey || resendApiKey === 're_your_resend_api_key_placeholder') {
+  console.warn('[RESEND_WARNING]: RESEND_API_KEY no configurado o mantiene valor por defecto. Saltando envío de correo.');
+  emailErrorMsg = 'Servicio de correo temporalmente desconectado.';
+}
+```
+
+Email sending is skipped entirely. The team is still registered in Supabase and the API returns a `200` response with:
+
+```json
+{
+  "success": true,
+  "message": "¡Registro exitoso!",
+  "email_sent": false,
+  "email_error": "Servicio de correo temporalmente desconectado."
+}
+```
+
+<Warning>
+  Never commit your `.env` file to source control. The project's `.gitignore` excludes `.env` by default — verify this before your first commit. Set production secrets through your cloud platform's secret management UI (Railway Variables, Render Environment, Fly.io Secrets) so they are never stored in plain text in your repository.
+</Warning>
+
+## Accessing Variables in Code
+
+Astro exposes environment variables through two mechanisms that behave identically in the SSR context:
+
+- **`import.meta.env`** — Astro's environment variable interface, available in both build-time and SSR request-time contexts.
+- **`process.env`** — The standard Node.js environment object, available in any server-side code.
+
+The registration API route reads the Resend key from both to handle every possible Node.js runtime context:
+
+```typescript
+const resendApiKey = import.meta.env.RESEND_API_KEY || process.env.RESEND_API_KEY;
+```
+
+The Supabase client in `src/lib/supabase.ts` reads the variables at module initialization time, so they must be present when the server process starts — not just when the first request arrives. If you update these values in your deployment environment, a full server restart is required for the new values to take effect.

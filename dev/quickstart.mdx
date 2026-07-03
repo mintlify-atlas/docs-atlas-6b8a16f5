@@ -1,0 +1,71 @@
+---
+title: "Run Carnero.Dev Locally — Developer Quickstart"
+sidebarTitle: "Quickstart"
+description: "Clone the Carnero.Dev repo, install dependencies, configure environment variables, and run the Astro dev server in under 5 minutes."
+---
+
+This guide gets you from zero to a running Carnero.Dev development environment. The platform is built on Astro 6 with server-side rendering via the Node.js adapter, backed by Supabase for data persistence and Resend for transactional email.
+
+## Prerequisites
+
+<Note>
+  **Node.js >= 22.12.0** is required — this is enforced in the `engines` field of `package.json`. You will also need a [Supabase](https://supabase.com) project with a Project URL and anon key, and a [Resend](https://resend.com) account with an API key before starting.
+</Note>
+
+## Getting Started
+
+<Steps>
+  <Step title="Clone the repository">
+    Grab the source code from GitHub and move into the project directory.
+
+    ```bash
+    git clone https://github.com/moradoadrian/carneroDev.git
+    cd carneroDev
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    Install all Node.js dependencies declared in `package.json`. This includes Astro 6, the Node.js adapter, Supabase JS client, Resend, Tailwind CSS 4, and GSAP.
+
+    ```bash
+    npm install
+    ```
+  </Step>
+
+  <Step title="Configure environment variables">
+    Create a `.env` file at the project root and populate it with your Supabase and Resend credentials. The application will not connect to the database or send emails without these values.
+
+    ```bash .env
+    SUPABASE_URL=your_supabase_project_url
+    SUPABASE_ANON_KEY=your_supabase_anon_key
+    RESEND_API_KEY=your_resend_api_key
+    ```
+
+    See the [Environment Setup](/dev/environment-setup) guide for step-by-step instructions on finding each value.
+  </Step>
+
+  <Step title="Start the development server">
+    Launch the Astro dev server with Hot Module Replacement enabled.
+
+    ```bash
+    npm run dev
+    ```
+
+    The site is now available at **http://localhost:4321**.
+  </Step>
+</Steps>
+
+## Available Commands
+
+All project scripts are defined in `package.json` and are run from the project root.
+
+| Command | Action |
+|---|---|
+| `npm run dev` | Starts the development server with Hot Module Replacement |
+| `npm run build` | Generates an optimized production build in `/dist` |
+| `npm run preview` | Previews the production build locally |
+| `npm run astro` | Direct access to the Astro CLI |
+
+<Tip>
+  The dev server uses Astro's server-side rendering mode (`output: 'server'`) with the Node.js standalone adapter, so all API routes like `/api/register` are fully functional during development — no separate backend process is required.
+</Tip>

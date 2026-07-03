@@ -1,0 +1,176 @@
+---
+title: "GSAP Scroll Animations in Carnero.Dev"
+sidebarTitle: "Animations"
+description: "How Carnero.Dev uses GSAP and ScrollTrigger for hero entrance animations, section reveals, staggered card fades, and evaluation progress bars."
+---
+
+Carnero.Dev uses GSAP (GreenSock Animation Platform) with the `ScrollTrigger` plugin to create fluid, accessible animations across the landing page. All animations are initialized client-side in the main `<script>` tag of `src/pages/index.astro`, keeping them decoupled from the Astro component layer while retaining full access to the rendered DOM.
+
+## Animation Architecture
+
+The animation system is built around three core principles that keep it robust, accessible, and non-destructive to Tailwind's utility classes.
+
+**Memory-safe context.** All GSAP calls are wrapped in a `gsap.context()` instance stored in `ctx`. On page unload, `ctx.revert()` is called to tear down all animations, kill all `ScrollTrigger` instances, and release memory — essential for environments with client-side navigation.
+
+```javascript
+let ctx: any;
+
+const initAnimations = () => {
+  ctx = gsap.context(() => {
+    // all gsap.from / gsap.to / ScrollTrigger calls go here
+  });
+};
+
+window.addEventListener('unload', () => {
+  if (ctx) ctx.revert();
+});
+```
+
+**Reduced-motion support.** Before any animation runs, the code reads the `prefers-reduced-motion` media query. Users who have opted into reduced motion receive dramatically shortened durations, no spatial offsets, and no blur effects.
+
+```javascript
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const duration    = prefersReducedMotion ? 0.2  : 0.8;
+const staggerDelay = prefersReducedMotion ? 0    : 0.05;
+const yOffset     = prefersReducedMotion ? 0    : 15;
+const blurAmount  = prefersReducedMotion ? 'blur(0px)' : 'blur(6px)';
+```
+
+**Non-destructive `clearProps`.** Every `gsap.from()` call ends with `clearProps: 'transform,opacity,filter'` or `clearProps: 'all'`. This removes the inline styles GSAP writes during the animation so that Tailwind's `hover:`, `focus:`, and layout utilities (`flex`, `grid`) are fully restored once the animation finishes.
+
+## Hero Entrance Sequence
+
+The hero section plays a chained entrance timeline on page load — no scroll required. Each element in the sequence overlaps slightly with the previous one using GSAP's position parameter (`'-=0.4'`), producing a smooth cascading feel rather than discrete steps.
+
+```javascript
+const tl = gsap.timeline();
+
+// Badge flag slides down
+tl.from('#hero .inline-flex', {
+  opacity: 0,
+  y: -10,
+  duration: 0.8,
+  ease: 'power2.out',
+  clearProps: 'transform,opacity'
+});
+
+// Logo scales in with blur
+tl.from('#hero .animate-float', {
+  opacity: 0,
+  scale: 0.96,
+  filter: 'blur(6px)',
+  duration: 1.0,
+  ease: 'power2.out',
+  clearProps: 'transform,opacity,filter'
+}, '-=0.4');
+```
+
+The full timeline continues with the `h1` title, the `.font-mono` slogan, the countdown card grid, and the CTA buttons — each staggered into view with `power2.out` or `power3.out` easing. Countdown cards use `clearProps: 'all'` because they participate in a CSS grid layout that must be restored after the animation.
+
+## ScrollTrigger Section Reveals
+
+All ten major content sections use `ScrollTrigger` to fade in and slide up their title container when the section reaches 85% scroll progress in the viewport. The pattern is applied uniformly across every section ID:
+
+```javascript
+const sections = [
+  '#about', '#desafio', '#evaluacion', '#entregables',
+  '#bases-resumen', '#timeline', '#prizes',
+  '#invitados', '#faq', '#sponsors'
+];
+
+sections.forEach(selector => {
+  const section = document.querySelector(selector);
+  if (!section) return;
+
+  const titleDiv = section.querySelector('.text-center');
+  if (titleDiv) {
+    gsap.from(titleDiv, {
+      scrollTrigger: {
+        trigger: section,
+        start: 'top 85%',
+        toggleActions: 'play none none none'
+      },
+      opacity: 0,
+      y: yOffset,
+      filter: blurAmount,
+      duration: duration,
+      ease: 'power2.out',
+      clearProps: 'transform,opacity,filter'
+    });
+  }
+});
+```
+
+`toggleActions: 'play none none none'` means the animation fires once when the trigger enters the viewport and never reverses — appropriate for a single-scroll landing page where sections are not expected to leave and re-enter the view repeatedly.
+
+## Staggered Card Animations
+
+Card grids in the Challenge, Evaluation, Deliverables, Rules, and Prizes sections use a shared stagger pattern. Each card fans in slightly after the previous one, creating a ripple effect as the grid comes into view. The trigger fires at 75% scroll progress — slightly earlier than the section headers — so the cards are already animating as the user's eye moves down from the title.
+
+```javascript
+gsap.from('#desafio .grid > div', {
+  scrollTrigger: {
+    trigger: '#desafio',
+    start: 'top 75%',
+    toggleActions: 'play none none none'
+  },
+  opacity: 0,
+  y: 15,
+  scale: 0.98,
+  filter: 'blur(6px)',
+  duration: 0.8,
+  stagger: 0.04,
+  ease: 'power2.out',
+  clearProps: 'all'
+});
+```
+
+The five stagger configurations and their per-card delays are:
+
+| Section | Targets | Stagger Delay |
+|---|---|---|
+| `#desafio` | `.grid > div` | `0.04s` |
+| `#evaluacion` | `.grid > div` | `0.04s` |
+| `#entregables` | `.grid > div` | `0.04s` |
+| `#bases-resumen` | `.grid > div` | `0.05s` |
+| `#prizes` | `.flex.flex-col > div` | `0.06s` |
+
+## Evaluation Progress Bars
+
+The Evaluation section renders judging rubric criteria with `.gsap-progress-bar` elements. Each bar carries a `data-percent` attribute (e.g. `data-percent="85%"`) representing its target fill width. On scroll, GSAP animates the bar's `width` from `0` to that target value over 1.2 seconds.
+
+```javascript
+gsap.to(bar, {
+  scrollTrigger: { trigger: evalSection, start: 'top 75%' },
+  width: bar.getAttribute('data-percent'),
+  duration: 1.2,
+  ease: 'power2.out'
+});
+```
+
+Unlike the `gsap.from()` calls elsewhere, these bars use `gsap.to()` — the initial `width: 0` is set in the component's CSS, and GSAP only drives the bar to its final value. This means `clearProps` is intentionally omitted so the filled state persists after the animation ends.
+
+## Countdown Timer
+
+The Hero component includes a `setInterval`-based JavaScript countdown that targets the event start date. It runs every second and writes the remaining time to four DOM elements: `#days`, `#hours`, `#minutes`, and `#seconds`.
+
+```javascript
+const eventDate = new Date('October 16, 2026 09:00:00');
+
+setInterval(() => {
+  const now = new Date();
+  const diff = eventDate - now;
+
+  document.getElementById('days').textContent    = Math.floor(diff / 86400000);
+  document.getElementById('hours').textContent   = Math.floor((diff % 86400000) / 3600000);
+  document.getElementById('minutes').textContent = Math.floor((diff % 3600000) / 60000);
+  document.getElementById('seconds').textContent = Math.floor((diff % 60000) / 1000);
+}, 1000);
+```
+
+The countdown cards themselves are animated into view by the hero entrance timeline with `clearProps: 'all'`, ensuring that any Tailwind hover and transform utilities on the cards continue to function normally after the pop-in animation completes.
+
+<Tip>
+  All `clearProps: 'all'` calls are critical — they remove the inline `transform`, `opacity`, and `filter` styles that GSAP writes to DOM elements during a `gsap.from()` animation. Without them, Tailwind's `hover:scale-*` and `hover:opacity-*` utilities would be overridden by residual inline styles left behind after the animation finishes, silently breaking interactive states.
+</Tip>

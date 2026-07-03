@@ -1,0 +1,78 @@
+---
+title: "Supabase Integration for Team Registration Data"
+sidebarTitle: "Supabase"
+description: "How Carnero.Dev uses Supabase to initialize a PostgreSQL client, insert team registrations, and handle database errors in the API route."
+---
+
+Carnero.Dev uses Supabase as its backend-as-a-service layer for persisting team registration data. The Supabase client is initialized once as a singleton in `src/lib/supabase.ts` and imported directly by the server-side API route. This keeps database access centralized and avoids creating redundant connections across the application.
+
+## Client Initialization
+
+The Supabase client is created with `createClient` from `@supabase/supabase-js`, passing the project URL and the publishable anon key. The resulting `supabase` instance is exported as a named singleton so any server-side module can import it without re-initializing the connection.
+
+```typescript src/lib/supabase.ts
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = 'https://sdobjolxazkvbsakzwcl.supabase.co'
+const supabaseKey = 'sb_publishable_O51sgtbrGi48EakI2_z-5w_3QI7bef8'
+
+export const supabase = createClient(supabaseUrl, supabaseKey)
+```
+
+<Note>
+  In production, the URL and key should be read from environment variables (`SUPABASE_URL` and `SUPABASE_ANON_KEY`) rather than hardcoded. See the Environment Setup guide.
+</Note>
+
+## Database Schema
+
+The registration endpoint inserts records into a `registrations` table. Each row captures the team identity, the representative contact, the team size, and a server-generated timestamp. The `members_count` column enforces a check constraint so only values between 1 and 4 are accepted at the database level, providing a second line of defense after the server-side validation in the API route.
+
+```sql
+create table registrations (
+  id uuid default gen_random_uuid() primary key,
+  team_name text not null,
+  representative_name text not null,
+  email text not null,
+  members_count integer not null check (members_count between 1 and 4),
+  created_at timestamptz default now()
+);
+```
+
+## Inserting a Registration
+
+After all server-side validation passes, the API route calls `supabase.from('registrations').insert()` with the parsed payload. The operation is destructured to capture only the `error` field — a `null` error means the row was committed successfully. If `dbError` is truthy, the server logs the raw Supabase error object and immediately returns a `500` response to the client; no email is sent in that case.
+
+```typescript
+const { error: dbError } = await supabase
+  .from('registrations')
+  .insert([
+    {
+      team_name: teamName,
+      representative_name: repName,
+      email: repEmail,
+      members_count: parsedCount
+    }
+  ]);
+
+if (dbError) {
+  console.error('[SUPABASE_DB_INSERT_ERROR]', dbError);
+  return new Response(
+    JSON.stringify({ error: `[ERROR_DE_SISTEMA]: ${dbError.message}` }),
+    { status: 500 }
+  );
+}
+```
+
+## Error Handling
+
+When Supabase returns an error on insert, the API route takes three steps:
+
+1. **Logs the raw error** to the server console with the `[SUPABASE_DB_INSERT_ERROR]` prefix, making it easy to filter in production logs.
+2. **Returns a `500` response** whose JSON body contains an `error` string prefixed with `[ERROR_DE_SISTEMA]:` followed by the Supabase error message.
+3. **Halts the request pipeline** — the Resend email step is never reached, so no confirmation is dispatched for a registration that was not saved.
+
+On the client side, the `RegisterModal.astro` script catches any non-`2xx` response and renders the `error` string inside the modal's red error panel (`#registration-error`), surfacing the failure message directly to the user without a page reload.
+
+<Tip>
+  Enable Row Level Security (RLS) on your Supabase `registrations` table in production. Allow only `INSERT` operations from the anon key; restrict `SELECT` and `UPDATE` to authenticated admin users.
+</Tip>

@@ -1,0 +1,110 @@
+---
+title: "Email Notifications with Resend in Carnero.Dev"
+sidebarTitle: "Email"
+description: "Carnero.Dev uses Resend to send HTML confirmation emails to team representatives after successful registration, with a plain-text fallback."
+---
+
+After a team is successfully registered in Supabase, Carnero.Dev dispatches a confirmation email via the Resend API. The email is sent from `registro@carnero-dev.tech` and includes the team's full registration details rendered inside a styled HTML template. Email dispatch is a best-effort operation — a failure does not roll back the database record and the `POST /api/register` endpoint still returns `200` with `email_sent: false`.
+
+## Email Configuration
+
+| Property | Value |
+|---|---|
+| **From** | `Carnero.Dev <registro@carnero-dev.tech>` |
+| **To** | Team representative's email (`repEmail`) |
+| **Subject** | `Tu registro para Carnero.Dev fue confirmado` |
+| **Formats** | HTML (primary) + plain text fallback |
+
+## Sending an Email
+
+Once the Supabase insert succeeds, the handler resolves the `RESEND_API_KEY` from Astro's `import.meta.env` with a `process.env` fallback. A new `Resend` instance is created per request, and `resend.emails.send()` is called with both the `html` and `text` fields. The return value is destructured to check `mailResult.error`; a non-null error is logged and reflected in the response body without aborting the `200` return.
+
+```typescript
+const resend = new Resend(resendApiKey);
+
+const mailResult = await resend.emails.send({
+  from: 'Carnero.Dev <registro@carnero-dev.tech>',
+  to: repEmail,
+  subject: 'Tu registro para Carnero.Dev fue confirmado',
+  text: emailText,
+  html: emailHtml
+});
+
+if (mailResult.error) {
+  console.error('[RESEND_EMAIL_ERROR]', mailResult.error);
+}
+```
+
+## Email Content
+
+The HTML template is a table-based layout optimized for Gmail, Outlook, Yahoo Mail, and mobile screens. It is composed of three main sections:
+
+- **Header** — Burgundy banner (`#4a0e17`) with the `<Carnero.Dev/>` logo in monospace type and the "Build The Future" tagline in gold (`#d9a441`), separated from the body by a gold bottom border.
+- **Body** — Personalized greeting addressing the representative by name, followed by a monospace data table with a left gold border containing five rows:
+  - `EQUIPO` — team name
+  - `REPRESENTANTE` — representative's full name
+  - `CORREO` — representative's email address
+  - `INTEGRANTES` — member count
+  - `CATEGORÍA` — fixed value: *Build The Future*
+
+  Below the table, a paragraph reminds recipients of the event date: *"El hackathon comenzará el Viernes 16 de Octubre"*, followed by a gold CTA button linking to `https://carnero-dev.tech`.
+- **Footer** — Dark panel (`#050508`) with the automated-message disclaimer and the sender attribution: *"ITR Roque • Departamento de TICs"*.
+
+## Plain Text Fallback
+
+A `text` field is always included alongside `html` to improve deliverability and pass spam filters that penalize HTML-only messages. The plain text template mirrors the essential data from the HTML version:
+
+```
+Hola {repName},
+
+Tu registro para Carnero.Dev fue confirmado exitosamente.
+
+Equipo: {teamName}
+Representante: {repName}
+Integrantes: {membersCount}
+
+Nos vemos en el hackathon.
+Build The Future.
+```
+
+## Error Handling
+
+Email dispatch has three distinct failure modes, all of which are handled without interrupting the successful registration response:
+
+**1. Missing or placeholder `RESEND_API_KEY`**
+
+If `import.meta.env.RESEND_API_KEY` (and the `process.env` fallback) is either undefined or equals the literal string `re_your_resend_api_key_placeholder`, the server logs a warning and skips the entire Resend block:
+
+```
+[RESEND_WARNING]: RESEND_API_KEY no configurado o mantiene valor por defecto. Saltando envío de correo.
+```
+
+The registration is still committed to Supabase. The `200` response body will contain `email_sent: false` and `email_error: "Servicio de correo temporalmente desconectado."`.
+
+**2. Resend API returns an error**
+
+If `resend.emails.send()` resolves successfully but `mailResult.error` is non-null, the server logs the error object:
+
+```
+[RESEND_EMAIL_ERROR] { ... }
+```
+
+The response body reflects this with `email_sent: false` and `email_error` set to `mailResult.error.message`.
+
+**3. Network or runtime exception**
+
+If `resend.emails.send()` throws (network timeout, DNS failure, unexpected runtime error), the `catch` block logs the exception:
+
+```
+[RESEND_EMAIL_EXCEPTION] { ... }
+```
+
+The caught error message is forwarded to `email_error` in the response. The registration remains saved in Supabase.
+
+<Warning>
+  Email failures do not roll back the Supabase registration. Teams that report not receiving a confirmation email have still been registered — their data is in the database. Verify their record in the Supabase dashboard before asking them to re-submit the form.
+</Warning>
+
+<Tip>
+  Test email delivery locally by setting `RESEND_API_KEY` to a real Resend test key. Resend's sandbox mode allows sending to your own verified email address without requiring a custom domain to be configured.
+</Tip>

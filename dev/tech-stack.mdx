@@ -1,0 +1,74 @@
+---
+title: "Carnero.Dev Technology Stack — Astro, Supabase, Tailwind, GSAP"
+sidebarTitle: "Tech Stack"
+description: "Carnero.Dev is built with Astro 6 (SSR), Tailwind CSS 4, Supabase PostgreSQL, GSAP animations, and Resend for transactional email."
+---
+
+Carnero.Dev is built on a modern, performance-focused stack. Astro handles server-side rendering with zero client-side JavaScript by default; Supabase provides the real-time PostgreSQL database; GSAP delivers fluid scroll-driven animations; and Resend handles transactional email. Together they produce a fast, immersive hackathon platform that ships minimal JavaScript to the browser while keeping server logic clean and maintainable.
+
+## Core Dependencies
+
+<CardGroup cols={2}>
+  <Card title="Astro ^6.3.7" icon="rocket">
+    Web framework with `output: 'server'` rendering mode and the `@astrojs/node` standalone adapter. Enables full SSR support, including API routes, while shipping zero client JS by default for purely static components.
+  </Card>
+  <Card title="Tailwind CSS ^4.3.0" icon="paintbrush">
+    Utility-first CSS framework integrated via the `@tailwindcss/vite` plugin. No `tailwind.config.js` file is required in v4 — design tokens and theme values are declared directly in `global.css` using the `@theme` block.
+  </Card>
+  <Card title="Supabase JS ^2.106.2" icon="database">
+    BaaS client for PostgreSQL data persistence. Handles all team registration records written from the `/api/register` endpoint. The client is initialized once in `src/lib/supabase.ts` and imported wherever needed.
+  </Card>
+  <Card title="GSAP ^3.15.0" icon="wand-magic-sparkles">
+    Industry-leading animation library used with the `ScrollTrigger` plugin for section reveals, staggered card fades, hero entrance sequences, and evaluation progress bar animations throughout the landing page.
+  </Card>
+  <Card title="Resend ^6.12.4" icon="envelope">
+    Modern transactional email API. Called from the server-side registration endpoint to send HTML confirmation emails to the team representative immediately after a successful sign-up.
+  </Card>
+  <Card title="@astrojs/node ^10.1.1" icon="server">
+    Node.js adapter enabling standalone server deployment. Required for SSR mode — it wraps the Astro build output in a Node HTTP server so API routes and dynamic pages execute at request time.
+  </Card>
+</CardGroup>
+
+## Astro Configuration
+
+The entire framework configuration lives in a single file at the project root. The key choices are `output: 'server'` for SSR and the Node standalone adapter for deployment.
+
+```javascript astro.config.mjs
+import { defineConfig } from 'astro/config';
+import tailwindcss from '@tailwindcss/vite';
+import node from '@astrojs/node';
+
+export default defineConfig({
+  output: 'server',
+
+  adapter: node({
+    mode: 'standalone'
+  }),
+
+  vite: {
+    plugins: [tailwindcss()]
+  }
+});
+```
+
+## TypeScript Configuration
+
+The `tsconfig.json` extends Astro's built-in `strict` preset, which enables all strict TypeScript checks recommended for Astro projects — including `strictNullChecks`, `noImplicitAny`, and proper `.astro` file type resolution.
+
+```json tsconfig.json
+{
+  "extends": "astro/tsconfigs/strict",
+  "include": [".astro/types.d.ts", "**/*"],
+  "exclude": ["dist"]
+}
+```
+
+## Why Server-Side Rendering?
+
+`output: 'server'` is required because the `/api/register` endpoint needs server execution to call Supabase and Resend securely. Without SSR, Astro API routes (`src/pages/api/*.ts`) are not available — the build would produce only static files with no runtime server to handle POST requests or protect secret API keys.
+
+Setting `mode: 'standalone'` on the Node adapter means the production build generates a self-contained Node.js server in `/dist`, ready to run with `node dist/server/entry.mjs` without any additional web server in front of it.
+
+<Tip>
+  Tailwind CSS 4 doesn't require a `tailwind.config.js` file. All configuration — including the custom `burgundy`, `gold`, and `charcoal` color scales, font stacks, and animation keyframes — is declared via CSS custom properties inside the `@theme {}` block in `src/styles/global.css`, processed directly through the `@tailwindcss/vite` plugin in the Vite pipeline.
+</Tip>

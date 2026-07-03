@@ -1,0 +1,82 @@
+---
+title: "Register Your Team for Carnero.Dev Hackathon"
+sidebarTitle: "Registration"
+description: "How to register your team for Carnero.Dev. Fill out the form on the event site with team name, representative details, and member count (1-4)."
+---
+
+Registration for Carnero.Dev is handled entirely through the event website. When you click the registration button, a modal form appears where your team's representative submits the required details. That data is sent to a secure backend API, stored in the event's database, and triggers an automatic confirmation email to the representative's address — so keep an eye on your inbox as soon as you submit.
+
+## Registration Requirements
+
+Before you open the form, make sure you have the following ready:
+
+- A **team name** that will identify your group throughout the event
+- The **full name** of the team representative (the primary contact)
+- A **valid email address** for the representative — confirmations and event updates will be sent here
+- Your **team size**: anywhere from 1 to 4 members (inclusive)
+- Agreement to the event's official rules and code of conduct
+
+## Registration Process
+
+<Steps>
+  <Step title="Visit the Carnero.Dev event site">
+    Navigate to [carnero-dev.tech](https://carnero-dev.tech) in your browser. The site is optimised for both desktop and mobile.
+  </Step>
+  <Step title='Click "Registrarse Ahora" in the hero section'>
+    Find the **Registrarse Ahora** (Register Now) call-to-action button in the main hero area of the homepage. Clicking it opens the registration modal overlay.
+  </Step>
+  <Step title="Fill out the registration form">
+    Complete all four required fields: **Team Name**, **Representative Name**, **Email**, and **Member Count** (select 1, 2, 3, or 4 members). The participation category — *\<Carnero.Dev/\> — Build The Future* — is pre-filled and cannot be changed.
+  </Step>
+  <Step title="Accept the event rules and code of conduct">
+    Check the terms checkbox to confirm that your team accepts the event bases, the code of conduct, and the commitment to deliver 100% original code.
+  </Step>
+  <Step title="Submit and await your confirmation email">
+    Click **\[ ENVIAR REGISTRO \]** to send your registration. If the submission is successful, a confirmation email will be dispatched from `registro@carnero-dev.tech` to the representative's address with your full registration details.
+  </Step>
+</Steps>
+
+## Registration Form Fields
+
+The following fields are submitted as a JSON payload to the `/api/register` endpoint via a `POST` request.
+
+<ParamField body="teamName" type="string" required>
+  The name that will represent your team throughout the hackathon. This is a free-text field — choose something memorable.
+
+  **Example:** `RoqueHackers`
+</ParamField>
+
+<ParamField body="repName" type="string" required>
+  Full name of the designated team representative. This person is the primary point of contact for organiser communications.
+
+  **Example:** `Adrián Morado`
+</ParamField>
+
+<ParamField body="repEmail" type="string" required>
+  A valid email address for the representative. The confirmation email and all pre-event communications will be sent to this address. Server-side validation enforces proper email formatting.
+
+  **Example:** `rep@roque.tecnm.mx`
+</ParamField>
+
+<ParamField body="membersCount" type="number" required>
+  Total number of team members, including the representative/leader. Must be an integer between **1** and **4** (inclusive). Values outside this range are rejected by the server.
+
+  **Allowed values:** `1`, `2`, `3`, `4`
+</ParamField>
+
+## What Happens After Registration
+
+Once your form is submitted successfully, the API performs two actions:
+
+1. **Database record** — your registration data (team name, representative name, email, and member count) is stored in the Carnero.Dev Supabase database.
+2. **Confirmation email** — an automated email is sent from `registro@carnero-dev.tech` to the representative's inbox. The email contains your full registration summary: team name, representative, email, member count, and participation category.
+
+Closer to the event date (Friday, October 16), you will receive a follow-up email with detailed schedule information, venue access instructions, technical requirements, and any last-minute announcements.
+
+<Note>
+  **Solo registration is fully allowed.** You do not need to form a team before registering — `membersCount: 1` is a valid option. During the first networking hour on Friday morning, a team-matching dynamic will be held so that solo participants can find partners and build complete teams before hacking begins.
+</Note>
+
+<Warning>
+  Registrations that fail server-side validation will be rejected with an HTTP `400` error. Specifically, submissions with **invalid or malformed email addresses** or a **member count outside the 1–4 range** will not be saved. Double-check your inputs before submitting.
+</Warning>
